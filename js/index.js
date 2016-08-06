@@ -273,7 +273,7 @@
             qm.tweetQuote(e);
         });
 
-        $('.exit').on('click', function(e) {
+        $('.exit').on('touchstart click', function(e) {
             $('.info input').prop('checked', false);
         });
 
