@@ -21,80 +21,65 @@
     qm.middleQuote = ((qm.options.numberOfQuotes - (qm.options.numberOfQuotes % 2)) / 2);
     qm.currentQuote = qm.middleQuote;
     qm.quoteCount = 0;
+    qm.quotes = {'quotes': [{
+        'id': 0,
+        'quote': 'You\'re out of luck, please try again later.',
+        'cite': 'Quote Machine'
+    }]};
+
+    qm.ajaxQuotes = function() {
+      // REMOTE
+      $.ajax({
+              type: 'GET',
+              url: 'http://demikeison.com/fcc/qm/ajax.php'
+          })
+          .done(function(data) {
+              // save the fetched data
+              qm.quotes = JSON.parse(data);
+              console.log('ajax done');
+          })
+          .fail(function() {
+              // set a default message if ajax fails
+              qm.middleQuote = 0;
+              qm.currentQuote = qm.middleQuote
+              qm.options.numberOfQuotes = 1;
+              console.log('error, getJSON failed!');
+          })
+          .always(function() {
+              // on completion run getQuotes
+              qm.getQuotes();
+              console.log('completed getJSON');
+          });
+      // LOCAL
+      // $.getJSON('js/quotes1.json', function(data) {
+      //         // save the fetched data
+      //         qm.quotes = data;
+      //     })
+      //     .fail(function() {
+      //         // set a default message if ajax fails
+      //         qm.middleQuote = 0;
+      //         qm.currentQuote = qm.middleQuote
+      //         qm.options.numberOfQuotes = 1;
+      //         console.log('error, getJSON failed!');
+      //     })
+      //     .always(function() {
+      //         // on completion run getQuotes
+      //         qm.getQuotes();
+      //         console.log('completed getJSON');
+      //     });
+    }
 
     /**
      * get the quotes from json file
      */
-    // qm.getQuotes = function() {
-    //     // if quotes exist remove them
-    //     if ($('.quote-wrap').length) {
-    //         this.removeQuotes();
-    //         return;
-    //     }
-    //     // REMOTE
-    //     $.ajax({
-    //             type: 'GET',
-    //             url: 'http://demikeison.com/fcc/qm/ajax.php'
-    //         })
-    //         .done(function(data) {
-    //             // used always instead of done
-    //             data = JSON.parse(data);
-    //             qm.setRandomQuotes(data);
-    //             console.log('done');
-    //         })
-    //         .fail(function() {
-    //             qm.middleQuote = 0;
-    //             qm.currentQuote = qm.middleQuote
-    //             qm.options.numberOfQuotes = 1;
-    //             qm.setRandomQuotes({
-    //                 'quotes': [{
-    //                     'id': 0,
-    //                     'quote': 'You\'re out of luck, please try again later.',
-    //                     'cite': 'Quote Machine'
-    //                 }]
-    //             });
-    //             console.log('error, getJSON failed!');
-    //         })
-    //         .always(function() {
-    //             // on completion run init method to detemine the state
-    //             // of the buttons and move the current class
-    //             qm.init();
-    //             console.log('completed getJSON');
-    //         });
-    // }
-    // LOCAL
     qm.getQuotes = function() {
         // if quotes exist remove them
         if ($('.quote-wrap').length) {
             this.removeQuotes();
             return;
         }
-        $.getJSON('js/quotes.json', function(data) {
-                //run random quotes method with the fetched data
-                qm.setRandomQuotes(data);
-            })
-            .done(function() {
-                // used always instead of done
-            })
-            .fail(function() {
-                qm.middleQuote = 0;
-                qm.currentQuote = qm.middleQuote
-                qm.options.numberOfQuotes = 1;
-                qm.setRandomQuotes({
-                    'quotes': [{
-                        'id': 0,
-                        'quote': 'You\'re out of luck, please try again later.',
-                        'cite': 'Quote Machine'
-                    }]
-                });
-                console.log('error, getJSON failed!');
-            })
-            .always(function() {
-                // on completion run init method to detemine the state
-                // of the buttons and move the current class
-                qm.init();
-                console.log('completed getJSON');
-            });
+        qm.setRandomQuotes(qm.quotes);
+        qm.init();
     }
 
     /**
@@ -255,7 +240,7 @@
      */
     $(document).ready(function() {
         // on document ready
-        qm.getQuotes();
+        qm.ajaxQuotes();
 
         $('.random').on('click', function(e) {
             qm.getQuotes();
