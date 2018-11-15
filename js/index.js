@@ -1,267 +1,77 @@
 "use strict";
 
-(function($, window, document) {
-
+(function() {
     /**
      * set namespace quote machine
      */
-    var qm = {};
+    const qm = {};
 
     /**
-     * variable options
+     * state
      */
-    qm.options = {
-        'numberOfQuotes': 9,
-        'delimeter': '---',
-    }
-
-    /**
-     * initialize properties to keep track of state
-     */
-    qm.middleQuote = ((qm.options.numberOfQuotes - (qm.options.numberOfQuotes % 2)) / 2);
-    qm.currentQuote = qm.middleQuote;
-    qm.quoteCount = 0;
-    qm.quotes = {'quotes': [{
-        'id': 0,
-        'quote': 'You\'re out of luck, please try again later.',
-        'cite': 'Quote Machine'
-    }]};
-
-    qm.ajaxQuotes = function() {
-      // REMOTE
-      $.ajax({
-              type: 'GET',
-              url: 'http://demikeison.com/fcc/qm/ajax.php'
-          })
-          .done(function(data) {
-              // save the fetched data
-              qm.quotes = JSON.parse(data);
-              console.log('ajax done');
-          })
-          .fail(function() {
-              // set a default message if ajax fails
-              qm.middleQuote = 0;
-              qm.currentQuote = qm.middleQuote
-              qm.options.numberOfQuotes = 1;
-              console.log('error, getJSON failed!');
-          })
-          .always(function() {
-              // on completion run getQuotes
-              qm.getQuotes();
-              console.log('completed getJSON');
-          });
-      // LOCAL
-      // $.getJSON('js/quotes1.json', function(data) {
-      //         // save the fetched data
-      //         qm.quotes = data;
-      //     })
-      //     .fail(function() {
-      //         // set a default message if ajax fails
-      //         qm.middleQuote = 0;
-      //         qm.currentQuote = qm.middleQuote
-      //         qm.options.numberOfQuotes = 1;
-      //         console.log('error, getJSON failed!');
-      //     })
-      //     .always(function() {
-      //         // on completion run getQuotes
-      //         qm.getQuotes();
-      //         console.log('completed getJSON');
-      //     });
-    }
-
-    /**
-     * get the quotes from json file
-     */
-    qm.getQuotes = function() {
-        // if quotes exist remove them
-        if ($('.quote-wrap').length) {
-            this.removeQuotes();
-            return;
-        }
-        qm.setRandomQuotes(qm.quotes);
-        qm.init();
-    }
+    qm.state = {
+        quotes: false,
+        currentQuote: false,
+    };
 
     /**
      * get a random integer to load random quotes
      */
     qm.getRandomInt = function getRandomInt(min, max) {
         return Math.floor(Math.random() * (max - min)) + min;
-    }
+    };
 
     /**
-     * set random quotes
+     * fetch the quotes
      */
-    qm.setRandomQuotes = function(q) {
-        // pick quotes based on random number
-        var use = [];
-        while (use.length < this.options.numberOfQuotes) {
-            var random = this.getRandomInt(0, q.quotes.length);
-            if (use.indexOf(random) === -1) {
-                use.push(random);
-            }
-        }
-        //determine the width of #content to accomodate the quotes
-        $('#content').css({
-            'width': 100 * this.options.numberOfQuotes + '%',
-        });
-        // foreach random quote load the data in quoteTemplate
-        $.each(use, function(index, val) {
-            qm.quoteCount++;
-            qm.quoteTemplate(q.quotes[val], index);
-        });
-    }
+    qm.fetchQuote = () => {
+       const fetchQuotePromise = fetch(`https://s3.amazonaws.com/web-1665/freecodecamp/quotes.json`);
+       fetchQuotePromise
+        .then(data => data.json())
+        .then(data => qm.state.quotes = data)
+        .then(() => qm.renderQuote(qm.state.quotes))
+        .catch(err => console.log(err))
+    };
+    qm.fetchQuote();
 
     /**
-     * quote template
+     * render quote from qm.quotes
      */
-    qm.quoteTemplate = function(quote, index) {
-        // set the color class
-        var color = 'primary-color';
-        if (this.quoteCount % 2 == 0) {
-            color = 'secondary-color';
-        }
-        // format the quote
-        var html = '';
-        html += '<div data-quote="' + this.quoteCount + '" class="quote-wrap ' + color + '">';
-        html += '<div class="quote">';
-        html += '<blockquote><q>' + quote.quote + '</q> ' + this.options.delimeter + ' ';
-        html += '<cite>' + quote.cite + '</cite>';
-        html += '</blockquote>';
-        html += '</div>';
-        html += '</div>';
-        // append the quote to #content in the dom
-        $('#inner-content').append(html);
-    }
+    qm.renderQuote = (data) => {
+        const {quotes} = data;
+        const pickQuote = qm.getRandomInt(0, quotes.length);
+        if(quotes.length !== 1 && pickQuote === qm.state.currentQuote) qm.renderQuote();
+        const randomQuote = quotes[pickQuote];
+        document.getElementById('text').textContent = randomQuote.quote;
+        document.getElementById('author').textContent = randomQuote.cite;
+        qm.createTweetLink('FreeCodeCamp', `${randomQuote.quote} — ${randomQuote.cite}`);
+    };
 
     /**
-     * remove quotes before loading new quotes
+     * tweet
      */
-    qm.removeQuotes = function() {
-        // disable buttons
-        $('.next, .prev, .tweet, .random').prop('disabled', true);
-        $('.info input').prop("checked", true);
-        // move the current quotes out of site before they are removed
-        // then reset state properties and get new quotes
-        $('#content').animate({
-            'marginLeft': -100 * this.options.numberOfQuotes + '%',
-        }, 1000, function() {
-            $('.quote-wrap').remove();
-            qm.quoteCount = 0;
-            qm.currentQuote = qm.middleQuote;
-            qm.getQuotes();
-        });
-    }
-
-    /**
-     * sets the middle quote as the default
-     */
-    qm.init = function(e) {
-        $('.quote-wrap').removeClass('current');
-        $('.next, .prev, .tweet, .random').prop('disabled', true);
-        // add class current to currentQuote
-        $('.quote-wrap[data-quote="' + (this.currentQuote + 1) + '"]').addClass('current');
-
-        // center current quote
-        $('#content').animate({
-            'marginLeft': -100 * this.middleQuote + '%',
-        }, 1000, function() {
-            // sets the state of the buttons
-            $('.tweet, .random').prop('disabled', false);
-            if (qm.currentQuote == 0) {
-                $('.prev').prop('disabled', true);
-            }
-            if (qm.currentQuote == qm.quoteCount - 1) {
-                $('.next').prop('disabled', true);
-            }
-            if (qm.currentQuote > 0) {
-                $('.prev').prop('disabled', false);
-            }
-            if (qm.currentQuote < qm.quoteCount - 1) {
-                $('.next').prop('disabled', false);
-            }
-        });
-        $('.info input').prop('checked', false);
-    }
-
-    /**
-     * select previous quote
-     * previous quote is selected by prepending the last quote
-     */
-    qm.prevQuote = function(e) {
-        this.currentQuote -= 1;
-        $('#inner-content').animate({
-            marginLeft: '100'
-        }, 500, function() {
-            $('#inner-content').prepend($('#content .quote-wrap:last'))
-                .animate({
-                    marginLeft: '0'
-                }, 300)
-        });
-        // run init method to detemine the state of the buttons
-        // and move the current class
-        this.init(e);
-    }
-
-    /**
-     * select next quote
-     * next quote is selected by appending the first quote
-     */
-    qm.nextQuote = function(e) {
-        this.currentQuote += 1;
-        $('#inner-content').animate({
-            marginLeft: '-100'
-        }, 500, function() {
-            $('#inner-content').append($('#content .quote-wrap:first'))
-                .animate({
-                    marginLeft: '0'
-                }, 200)
-        });
-        // run init method to detemine the state of the buttons
-        // and move the current class
-        this.init(e);
-    }
-
-    /**
-     * tweet the current quote
-     */
-    qm.tweetQuote = function() {
+    qm.createTweetLink = (hashtags, text) => {
         //get the current quoutes values
-        var cbq = $('.current blockquote');
-        var hashtags = 'FreeCodeCamp';
-        var text = cbq.text();
-        var url = 'http://twitter.com/intent/tweet?hashtags=' + hashtags + '&text=' + text;
-        // create tweet popup
-        window.open(url, 'popup', 'width=400, height=300');
-    }
+        const url = 'https://twitter.com/intent/tweet?hashtags=' + hashtags + '&text=' + text;
+        document.getElementById('tweet-quote').href = url;
+    };
+    qm.tweetQuote = () => window.open(document.getElementById('tweet-quote').href, 'popup', 'width=400, height=300');
 
     /**
-     * EVENTS
+     * Events
      */
-    $(document).ready(function() {
-        // on document ready
-        qm.ajaxQuotes();
+    // render new quote
+    document.getElementById('new-quote').addEventListener('click', e => qm.renderQuote(qm.state.quotes));
 
-        $('.random').on('click', function(e) {
-            qm.getQuotes();
-        });
-
-        $('.prev').on('click', function(e) {
-            qm.prevQuote(e);
-        });
-
-        $('.next').on('click', function(e) {
-            qm.nextQuote(e);
-        });
-
-        $('.tweet').on('click', function(e) {
-            qm.tweetQuote(e);
-        });
-
-        $('.exit').on('touchstart click', function(e) {
-            $('.info input').prop('checked', false);
-        });
-
+    // tweet quote
+    document.getElementById('tweet-quote').addEventListener('click', e => {
+        e.preventDefault();
+        qm.tweetQuote();
     });
 
-})(jQuery, window, document);
+    // toggle info
+    Array.from(document.querySelectorAll('.exit'))[0].addEventListener('click', e => {
+        Array.from(document.querySelectorAll('.info input'))[0].checked = false;
+    });
+
+})();
